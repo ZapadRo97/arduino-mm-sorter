@@ -6,11 +6,30 @@
 #define S2 4
 #define S3 3
 #define sensorOut 2
+#define SERVO_PIN 6
 
 int frequencyR =0, frequencyG =0, frequencyB =0;
 
+//measured values
+//may depend on ambient light conditions
+enum redValues {redMinR = 79, redMaxR = 110, redMinG = 139, redMaxG = 166, redMinB = 99, redMaxB = 121};
+enum orangeValues {orangeMaxR = 101, orangeMinG = 109, orangeMaxG = 135, orangeMinB = 84, orangeMaxB = 116};
+enum yellowValues {yellowMaxR = 81, yellowMinG = 79, yellowMaxG = 101, yellowMinB = 74, yellowMaxB = 101};
+
+//just for refference
+//these are not tested
+enum blueValues {blueMinR = 124, blueMaxR = 146, blueMinG = 114, blueMaxG = 136, blueMinB = 69, blueMaxB = 91};
+enum greenValues {greenMinR = 99, greenMaxR = 121, greenMinG = 99, greenMaxG = 121, greenMinB = 84, greenMaxB = 111};
+enum brownValues {brownMinR = 114, brownMaxR = 136, brownMinG = 124, brownMaxG = 151, brownMinB = 84, brownMaxB = 111};
+
+//brown, green and blue are just placeholders
+enum servoValues {servoRed = 90, servoYellow = 50, servoOrange = 20, servoBrown = 0, servoGreen = 1, servoBlue = 2};
+
+#define SMALL_CIRCLES 6
+#define NUM_READS 50
 #define gearratio 64
 const int stepsPerRevolution = 2048;
+const int stepperSpeed = 0.15;
 Stepper myStepper(stepsPerRevolution, 8,9,10,11);  
 
 Servo myServo;
@@ -34,9 +53,9 @@ void setup()
   digitalWrite(S1,LOW);
   
   //stepper init
-  myStepper.setSpeed(0.15*gearratio);
+  myStepper.setSpeed(stepperSpeed*gearratio);
   
-  myServo.attach(6);
+  myServo.attach(SERVO_PIN);
   
   Serial.begin(9600);
 }
@@ -83,7 +102,7 @@ void loop()
   int sumFreqB = 0;
   int sumFreqG = 0;
   
-  for(int i =0; i < 50; i++)
+  for(int i =0; i < NUM_READS; i++)
   {
     readColor();
     sumFreqR += frequencyR;
@@ -92,46 +111,49 @@ void loop()
   }
   
   Serial.print("R= ");
-  Serial.print(sumFreqR/50);
+  Serial.print(sumFreqR/NUM_READS);
   Serial.print(" ");
   Serial.print("G= ");
-  Serial.print(sumFreqG/50);
+  Serial.print(sumFreqG/NUM_READS);
   Serial.print(" ");
   Serial.print("B= ");
-  Serial.print(sumFreqB/50);
+  Serial.print(sumFreqB/NUM_READS);
   Serial.print(" ");
   Serial.println(" ");
   
-  int avgFreqR = sumFreqR/50;
-  int avgFreqG = sumFreqG/50;
-  int avgFreqB = sumFreqB/50;
+  int avgFreqR = sumFreqR/NUM_READS;
+  int avgFreqG = sumFreqG/NUM_READS;
+  int avgFreqB = sumFreqB/NUM_READS;
   
-  if(avgFreqR > 79 && avgFreqR < 110 && avgFreqG > 139 && avgFreqG < 166 && avgFreqB > 99 && avgFreqB < 121)
+  if(avgFreqR > redMinR && avgFreqR < redMaxR && avgFreqG > redMinG && avgFreqG < redMaxG && avgFreqB > redMinB && avgFreqB < redMaxB)
   {
     Serial.println("RED");
-    lastColor = 90;
+    lastColor = servoRed;
   }
-  else if(avgFreqR > 124 && avgFreqR < 146 && avgFreqG > 114 && avgFreqG < 136 && avgFreqB > 69 && avgFreqB < 91)
+  else if(avgFreqR > blueMinR && avgFreqR < blueMaxR && avgFreqG > blueMinG && avgFreqG < blueMaxG && avgFreqB > blueMinB && avgFreqB < blueMaxB)
   {
     Serial.println("BLUE");
+    lastColor = servoBlue;
   }
-  else if(avgFreqR > 99 && avgFreqR < 121 && avgFreqG > 99 && avgFreqG < 121 && avgFreqB > 84 && avgFreqB < 111)
+  else if(avgFreqR > greenMinR && avgFreqR < greenMaxR && avgFreqG > greenMinG && avgFreqG < greenMaxG && avgFreqB > greenMinB && avgFreqB < greenMaxB)
   {
     Serial.println("GREEN");
+    lastColor = servoGreen;
   }
-  else if(avgFreqR < 81 && avgFreqG > 79 && avgFreqG < 101 && avgFreqB > 74 && avgFreqB < 101)
+  else if(avgFreqR < yellowMaxR && avgFreqG > yellowMinG && avgFreqG < yellowMaxG && avgFreqB > yellowMinB && avgFreqB < yellowMaxB)
   {
     Serial.println("YELLOW");
-    lastColor = 50;
+    lastColor = servoYellow;
   }
-  else if(avgFreqR < 101 && avgFreqG > 109 && avgFreqG < 135 && avgFreqB > 84 && avgFreqB < 116)
+  else if(avgFreqR < orangeMaxR && avgFreqG > orangeMinG && avgFreqG < orangeMaxG && avgFreqB > orangeMinB && avgFreqB < orangeMaxB)
   {
     Serial.println("ORANGE");
-    lastColor = 20;
+    lastColor = servoOrange;
   }
-  else if(avgFreqR > 114 && avgFreqR < 136 && avgFreqG > 124 && avgFreqG < 151 && avgFreqB > 84 && avgFreqB < 111)
+  else if(avgFreqR > brownMinR && avgFreqR < brownMaxR && avgFreqG > brownMinG && avgFreqG < brownMaxG && avgFreqB > brownMinB && avgFreqB < brownMaxB)
   {
     Serial.println("BROWN");
+    lastColor = servoBrown;
   }
 
   //these should fix the no exact stepsPerRevolution/6
@@ -139,25 +161,25 @@ void loop()
   
   if(balancingStep)
   {
-    if(circleStep == 6)
+    if(circleStep == SMALL_CIRCLES)
     {
-      myStepper.step(stepsPerRevolution/6);
+      myStepper.step(stepsPerRevolution/SMALL_CIRCLES);
       circleStep = 0;
       Serial.println("FULL ROTATION");
     }
     else
-      myStepper.step(stepsPerRevolution/6+1);
+      myStepper.step(stepsPerRevolution/SMALL_CIRCLES+1);
   }
   else
   {
-    if(circleStep == 6)
+    if(circleStep == SMALL_CIRCLES)
     {
-      myStepper.step(stepsPerRevolution/6-1);
+      myStepper.step(stepsPerRevolution/SMALL_CIRCLES-1);
       circleStep = 0;
       Serial.println("FULL ROTATION");  
     }
     else
-      myStepper.step(stepsPerRevolution/6);
+      myStepper.step(stepsPerRevolution/SMALL_CIRCLES);
   }
     
   circleStep++;
